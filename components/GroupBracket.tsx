@@ -1,12 +1,15 @@
 "use client";
 
 import { Group, GroupBracketPicks, REGION_COLORS, getTeamById } from "@/lib/tournament";
-import { Swords, Trophy } from "lucide-react";
+import { MatchResult } from "@/hooks/useResults";
+import { getSchedule, formatMatchTime, matchStatus } from "@/lib/schedule";
+import { Swords, Trophy, Lock, Radio } from "lucide-react";
 
 interface GroupBracketProps {
   group: Group;
   picks: GroupBracketPicks;
   onChange: (groupId: string, picks: GroupBracketPicks) => void;
+  liveResults?: Record<string, MatchResult>; // bracketMatchId → result
 }
 
 interface MatchSlotProps {
@@ -67,47 +70,87 @@ function TeamSlot({ teamId, isWinner, isLoser, isEliminated, onClick, disabled, 
 
 interface MatchCardProps {
   matchId: string;
+  groupId: string;
   title: string;
   team1Id?: string;
   team2Id?: string;
   winnerId?: string;
   onPick: (matchId: string, teamId: string) => void;
   disabled?: boolean;
-  highlight?: string; // "upper" | "lower"
+  highlight?: string;
+  liveResult?: MatchResult;
 }
 
-function MatchCard({ matchId, title, team1Id, team2Id, winnerId, onPick, disabled, highlight }: MatchCardProps) {
-  const canPick = !disabled && !!team1Id && !!team2Id;
-  const borderColor = highlight === "upper" ? "#0BC4E3" : highlight === "lower" ? "#E84057" : "#1E2D3D";
+function MatchCard({ matchId, groupId, title, team1Id, team2Id, winnerId, onPick, disabled, highlight, liveResult }: MatchCardProps) {
+  const sched = getSchedule(groupId, matchId);
+  const status = liveResult?.status ?? (sched ? matchStatus(sched.startTime) : "upcoming");
+  const isLive = status === "inProgress" || status === "live";
+  const isCompleted = status === "completed";
+  const isLocked = isLive || isCompleted;
+
+  // Use live result winner to auto-set, override user pick visually
+  const effectiveWinner = liveResult?.winnerId ?? winnerId;
+  const score1 = liveResult?.score1;
+  const score2 = liveResult?.score2;
+
+  const canPick = !disabled && !isLocked && !!team1Id && !!team2Id;
+  const borderColor = isLive ? "#E84057"
+    : isCompleted ? "#00C050"
+    : highlight === "upper" ? "#0BC4E3"
+    : highlight === "lower" ? "#E84057"
+    : "#1E2D3D";
 
   return (
     <div className="rounded-sm overflow-hidden" style={{ border: `1px solid ${borderColor}22` }}>
       <div
-        className="text-[9px] font-black tracking-widest px-2 py-1 uppercase"
+        className="text-[9px] font-black tracking-widest px-2 py-1 uppercase flex items-center justify-between"
         style={{ backgroundColor: `${borderColor}15`, color: borderColor }}
       >
-        {title}
+        <span>{title}</span>
+        <span className="flex items-center gap-1">
+          {isLive && <Radio className="w-2.5 h-2.5 animate-pulse" />}
+          {isLocked && !isLive && <Lock className="w-2.5 h-2.5 opacity-60" />}
+          {sched && !isLive && !isCompleted && (
+            <span className="text-[#3D5A6F] font-normal normal-case tracking-normal">
+              {formatMatchTime(sched.startTime)}
+            </span>
+          )}
+        </span>
       </div>
       <div className="p-1.5 bg-[#010A13]/60 space-y-1">
-        <TeamSlot
-          teamId={team1Id}
-          isWinner={winnerId === team1Id}
-          isLoser={!!winnerId && winnerId !== team1Id}
-          onClick={canPick ? () => onPick(matchId, team1Id!) : undefined}
-          disabled={!canPick}
-        />
+        <div className="flex items-center gap-1">
+          <TeamSlot
+            teamId={team1Id}
+            isWinner={effectiveWinner === team1Id}
+            isLoser={!!effectiveWinner && effectiveWinner !== team1Id}
+            onClick={canPick ? () => onPick(matchId, team1Id!) : undefined}
+            disabled={!canPick}
+          />
+          {(isLive || isCompleted) && score1 !== undefined && (
+            <span className={`text-sm font-black tabular-nums w-5 text-center flex-shrink-0 ${effectiveWinner === team1Id ? "text-[#C8AA6E]" : "text-[#3D5A6F]"}`}>
+              {score1}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1 px-1">
           <div className="flex-1 h-px bg-[#1E2D3D]" />
           <Swords className="w-2.5 h-2.5 text-[#1E2D3D]" />
           <div className="flex-1 h-px bg-[#1E2D3D]" />
         </div>
-        <TeamSlot
-          teamId={team2Id}
-          isWinner={winnerId === team2Id}
-          isLoser={!!winnerId && winnerId !== team2Id}
-          onClick={canPick ? () => onPick(matchId, team2Id!) : undefined}
-          disabled={!canPick}
-        />
+        <div className="flex items-center gap-1">
+          <TeamSlot
+            teamId={team2Id}
+            isWinner={effectiveWinner === team2Id}
+            isLoser={!!effectiveWinner && effectiveWinner !== team2Id}
+            onClick={canPick ? () => onPick(matchId, team2Id!) : undefined}
+            disabled={!canPick}
+          />
+          {(isLive || isCompleted) && score2 !== undefined && (
+            <span className={`text-sm font-black tabular-nums w-5 text-center flex-shrink-0 ${effectiveWinner === team2Id ? "text-[#C8AA6E]" : "text-[#3D5A6F]"}`}>
+              {score2}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -147,26 +190,34 @@ function Standing({ rank, teamId }: { rank: number; teamId?: string }) {
   );
 }
 
-export default function GroupBracket({ group, picks, onChange }: GroupBracketProps) {
+export default function GroupBracket({ group, picks, onChange, liveResults = {} }: GroupBracketProps) {
   const [ubm1t1, ubm1t2] = group.ubm1;
   const [ubm2t1, ubm2t2] = group.ubm2;
 
-  // Derive participants for each round
-  const ubfT1 = picks.ubm1;
-  const ubfT2 = picks.ubm2;
-  const lbr1T1 = picks.ubm1 ? [ubm1t1, ubm1t2].find(id => id !== picks.ubm1) : undefined;
-  const lbr1T2 = picks.ubm2 ? [ubm2t1, ubm2t2].find(id => id !== picks.ubm2) : undefined;
-  const lbfT1 = picks.ubf ? [ubfT1, ubfT2].find(id => id !== picks.ubf) : undefined; // UBF loser
-  const lbfT2 = picks.lbr1; // LBR1 winner
+  // Merge live results into effective picks (live results override user picks for display)
+  const effectivePicks: GroupBracketPicks = { ...picks };
+  if (liveResults.ubm1?.winnerId) effectivePicks.ubm1 = liveResults.ubm1.winnerId;
+  if (liveResults.ubm2?.winnerId) effectivePicks.ubm2 = liveResults.ubm2.winnerId;
+  if (liveResults.ubf?.winnerId)  effectivePicks.ubf  = liveResults.ubf.winnerId;
+  if (liveResults.lbr1?.winnerId) effectivePicks.lbr1 = liveResults.lbr1.winnerId;
+  if (liveResults.lbf?.winnerId)  effectivePicks.lbf  = liveResults.lbf.winnerId;
+
+  // Derive participants using effective picks
+  const ubfT1 = effectivePicks.ubm1;
+  const ubfT2 = effectivePicks.ubm2;
+  const lbr1T1 = effectivePicks.ubm1 ? [ubm1t1, ubm1t2].find(id => id !== effectivePicks.ubm1) : undefined;
+  const lbr1T2 = effectivePicks.ubm2 ? [ubm2t1, ubm2t2].find(id => id !== effectivePicks.ubm2) : undefined;
+  const lbfT1 = effectivePicks.ubf ? [ubfT1, ubfT2].find(id => id !== effectivePicks.ubf) : undefined;
+  const lbfT2 = effectivePicks.lbr1;
 
   // Standings
-  const first  = picks.ubf;
-  const second = picks.lbf;
-  const third  = picks.lbf && lbfT1 && lbfT2
-    ? [lbfT1, lbfT2].find(id => id !== picks.lbf)
+  const first  = effectivePicks.ubf;
+  const second = effectivePicks.lbf;
+  const third  = effectivePicks.lbf && lbfT1 && lbfT2
+    ? [lbfT1, lbfT2].find(id => id !== effectivePicks.lbf)
     : undefined;
-  const fourth = picks.lbr1 && lbr1T1 && lbr1T2
-    ? [lbr1T1, lbr1T2].find(id => id !== picks.lbr1)
+  const fourth = effectivePicks.lbr1 && lbr1T1 && lbr1T2
+    ? [lbr1T1, lbr1T2].find(id => id !== effectivePicks.lbr1)
     : undefined;
 
   const handlePick = (matchId: string, teamId: string) => {
@@ -228,24 +279,22 @@ export default function GroupBracket({ group, picks, onChange }: GroupBracketPro
           <div>
             <div className="text-[#0BC4E3] text-[9px] font-black tracking-widest mb-1.5 text-center">UB ROUND 1</div>
             <MatchCard
-              matchId="ubm1"
+              matchId="ubm1" groupId={group.id}
               title="UB Match 1"
-              team1Id={ubm1t1}
-              team2Id={ubm1t2}
+              team1Id={ubm1t1} team2Id={ubm1t2}
               winnerId={picks.ubm1}
-              onPick={handlePick}
-              highlight="upper"
+              onPick={handlePick} highlight="upper"
+              liveResult={liveResults.ubm1}
             />
           </div>
           <div className="mt-2">
             <MatchCard
-              matchId="ubm2"
+              matchId="ubm2" groupId={group.id}
               title="UB Match 2"
-              team1Id={ubm2t1}
-              team2Id={ubm2t2}
+              team1Id={ubm2t1} team2Id={ubm2t2}
               winnerId={picks.ubm2}
-              onPick={handlePick}
-              highlight="upper"
+              onPick={handlePick} highlight="upper"
+              liveResult={liveResults.ubm2}
             />
           </div>
         </div>
@@ -260,14 +309,14 @@ export default function GroupBracket({ group, picks, onChange }: GroupBracketPro
           <div>
             <div className="text-[#0BC4E3] text-[9px] font-black tracking-widest mb-1.5 text-center">UB FINAL</div>
             <MatchCard
-              matchId="ubf"
+              matchId="ubf" groupId={group.id}
               title="Upper Final"
-              team1Id={ubfT1}
-              team2Id={ubfT2}
+              team1Id={ubfT1} team2Id={ubfT2}
               winnerId={picks.ubf}
               onPick={handlePick}
               disabled={!ubfT1 || !ubfT2}
               highlight="upper"
+              liveResult={liveResults.ubf}
             />
           </div>
 
@@ -280,14 +329,14 @@ export default function GroupBracket({ group, picks, onChange }: GroupBracketPro
           <div>
             <div className="text-[#E84057] text-[9px] font-black tracking-widest mb-1.5 text-center">LB ROUND 1</div>
             <MatchCard
-              matchId="lbr1"
+              matchId="lbr1" groupId={group.id}
               title="LB Match 1"
-              team1Id={lbr1T1}
-              team2Id={lbr1T2}
+              team1Id={lbr1T1} team2Id={lbr1T2}
               winnerId={picks.lbr1}
               onPick={handlePick}
               disabled={!lbr1T1 || !lbr1T2}
               highlight="lower"
+              liveResult={liveResults.lbr1}
             />
           </div>
         </div>
@@ -302,14 +351,14 @@ export default function GroupBracket({ group, picks, onChange }: GroupBracketPro
           <div>
             <div className="text-[#E84057] text-[9px] font-black tracking-widest mb-1.5 text-center">LB FINAL</div>
             <MatchCard
-              matchId="lbf"
+              matchId="lbf" groupId={group.id}
               title="LB Final"
-              team1Id={lbfT1}
-              team2Id={lbfT2}
+              team1Id={lbfT1} team2Id={lbfT2}
               winnerId={picks.lbf}
               onPick={handlePick}
               disabled={!lbfT1 || !lbfT2}
               highlight="lower"
+              liveResult={liveResults.lbf}
             />
           </div>
 

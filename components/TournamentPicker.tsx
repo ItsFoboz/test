@@ -11,6 +11,7 @@ import {
   PickData,
   getGroupStandings,
 } from "@/lib/tournament";
+import { MatchResult } from "@/hooks/useResults";
 import GroupBracket from "./GroupBracket";
 import BracketPicker from "./BracketPicker";
 import { Save, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
@@ -34,7 +35,11 @@ function buildSemifinals(groupBrackets: Record<string, GroupBracketPicks>) {
   ];
 }
 
-export default function TournamentPicker() {
+interface TournamentPickerProps {
+  liveResults?: Record<string, Record<string, MatchResult>>;
+}
+
+export default function TournamentPicker({ liveResults = {} }: TournamentPickerProps) {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>("groups");
   const [groupBrackets, setGroupBrackets] = useState<Record<string, GroupBracketPicks>>(DEFAULT_BRACKETS);
@@ -241,6 +246,7 @@ export default function TournamentPicker() {
                 group={group}
                 picks={groupBrackets[group.id] || {}}
                 onChange={handleGroupChange}
+                liveResults={liveResults[group.id] || {}}
               />
             ))}
           </div>

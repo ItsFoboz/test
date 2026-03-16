@@ -4,14 +4,17 @@ export const dynamic = "force-dynamic";
 
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useResults } from "@/hooks/useResults";
 import AuthPage from "@/components/AuthPage";
 import Navbar from "@/components/Navbar";
 import TournamentPicker from "@/components/TournamentPicker";
 import Leaderboard from "@/components/Leaderboard";
+import ResultsBanner from "@/components/ResultsBanner";
 
 export default function Home() {
   const { user, loading } = useAuth();
   const [view, setView] = useState<"picker" | "leaderboard">("picker");
+  const { results, fetchedAt, loading: resultsLoading, refresh } = useResults();
 
   if (loading) {
     return (
@@ -30,7 +33,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#010A13] bg-particles">
-      {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#C8AA6E] opacity-[0.02] rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-[#0BC4E3] opacity-[0.02] rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
@@ -39,7 +41,7 @@ export default function Home() {
       <div className="relative z-10">
         <Navbar currentView={view} onViewChange={setView} />
 
-        {/* Hero banner */}
+        {/* Hero */}
         <div className="border-b border-[#1E2D3D] bg-gradient-to-r from-[#010A13] via-[#0A1428] to-[#010A13]">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
             <div className="flex-1">
@@ -69,9 +71,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main content */}
+        {/* Live results ticker */}
+        <ResultsBanner
+          results={results}
+          fetchedAt={fetchedAt}
+          loading={resultsLoading}
+          onRefresh={refresh}
+        />
+
         <main className="pb-12">
-          {view === "picker" ? <TournamentPicker /> : <Leaderboard />}
+          {view === "picker"
+            ? <TournamentPicker liveResults={results} />
+            : <Leaderboard />}
         </main>
       </div>
     </div>
