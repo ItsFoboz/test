@@ -9,86 +9,95 @@ export interface Team {
   logoColor: string;
 }
 
-export interface Match {
-  id: string;
-  round: number;
-  position: number;
-  team1?: Team;
-  team2?: Team;
-  winner?: string;
-}
-
 export interface Group {
   id: string;
   name: string;
-  teams: Team[];
+  // Upper bracket matchups (seeded)
+  ubm1: [string, string]; // team ids
+  ubm2: [string, string];
 }
 
-export interface UserPick {
-  userId: string;
-  displayName: string;
-  photoURL?: string;
-  picks: PickData;
-  submittedAt: number;
-  score?: number;
+// Per-group double-elim picks
+// ubm1, ubm2 → Upper Bracket Matches
+// ubf         → Upper Bracket Final (ubm1 winner vs ubm2 winner) → 1st place
+// lbr1        → Lower Bracket R1 (ubm1 loser vs ubm2 loser)    → loser = 4th
+// lbf         → Lower Bracket Final (ubf loser vs lbr1 winner) → winner = 2nd, loser = 3rd
+export interface GroupBracketPicks {
+  ubm1?: string;
+  ubm2?: string;
+  ubf?: string;
+  lbr1?: string;
+  lbf?: string;
 }
 
 export interface PickData {
-  groupResults: Record<string, string[]>; // group id -> ordered team ids (1st to 4th)
-  bracketWinners: Record<string, string>; // match id -> winning team id
+  groupBrackets: Record<string, GroupBracketPicks>; // group id → picks
+  bracketWinners: Record<string, string>;           // playoff match id → team id
   champion?: string;
+}
+
+// Derives final group standings [1st, 2nd, 3rd, 4th] from bracket picks
+export function getGroupStandings(
+  group: Group,
+  picks: GroupBracketPicks
+): (string | undefined)[] {
+  const first  = picks.ubf;                    // UBF winner
+  const second = picks.lbf;                    // LBF winner
+  // 3rd = LBF loser (whichever of ubf-loser and lbr1-winner didn't win LBF)
+  const ubfLoser = picks.ubf
+    ? [group.ubm1[0], group.ubm1[1], group.ubm2[0], group.ubm2[1]].find(
+        (id) => {
+          const ubm1Winner = picks.ubm1;
+          const ubm2Winner = picks.ubm2;
+          if (!ubm1Winner || !ubm2Winner) return false;
+          // ubf participants are ubm1 winner and ubm2 winner
+          return (id === ubm1Winner || id === ubm2Winner) && id !== picks.ubf;
+        }
+      )
+    : undefined;
+  const lbr1Winner = picks.lbr1;
+  const third = picks.lbf
+    ? [ubfLoser, lbr1Winner].find((id) => id && id !== picks.lbf)
+    : undefined;
+  // 4th = LBR1 loser
+  const lbr1Participants = picks.ubm1 && picks.ubm2
+    ? [group.ubm1, group.ubm2].flatMap(([a, b]) => [a, b]).filter(
+        (id) => id !== picks.ubm1 && id !== picks.ubm2
+      )
+    : [];
+  const fourth = picks.lbr1
+    ? lbr1Participants.find((id) => id !== picks.lbr1)
+    : undefined;
+
+  return [first, second, third, fourth];
 }
 
 // First Stand 2026 — Real Teams
 export const TEAMS: Team[] = [
-  // LCK
-  { id: "geng", name: "Gen.G Esports", shortName: "GEN", region: "LCK", seed: 1, logoColor: "#C8AA6E" },
-  { id: "bfx",  name: "BNK FearX",     shortName: "BFX", region: "LCK", seed: 2, logoColor: "#FF4D7A" },
-  // LPL
-  { id: "blg",  name: "Bilibili Gaming", shortName: "BLG", region: "LPL", seed: 1, logoColor: "#FF69B4" },
-  { id: "jdg",  name: "JD Gaming",       shortName: "JDG", region: "LPL", seed: 2, logoColor: "#00BFFF" },
-  // LEC
-  { id: "g2",   name: "G2 Esports",      shortName: "G2",  region: "LEC", seed: 1, logoColor: "#00C050" },
-  // LCP (Pacific)
-  { id: "tsw",  name: "Team Secret Whales", shortName: "TSW", region: "LCP", seed: 1, logoColor: "#A855F7" },
-  // LCS
-  { id: "lyon", name: "LYON",            shortName: "LYON", region: "LCS", seed: 1, logoColor: "#0080FF" },
-  // CBLOL
-  { id: "loud", name: "LOUD",            shortName: "LOUD", region: "CBLOL", seed: 1, logoColor: "#00FF7F" },
+  { id: "geng", name: "Gen.G Esports",      shortName: "GEN",  region: "LCK",   seed: 1, logoColor: "#C8AA6E" },
+  { id: "bfx",  name: "BNK FearX",          shortName: "BFX",  region: "LCK",   seed: 2, logoColor: "#FF4D7A" },
+  { id: "blg",  name: "Bilibili Gaming",    shortName: "BLG",  region: "LPL",   seed: 1, logoColor: "#FF69B4" },
+  { id: "jdg",  name: "JD Gaming",          shortName: "JDG",  region: "LPL",   seed: 2, logoColor: "#00BFFF" },
+  { id: "g2",   name: "G2 Esports",         shortName: "G2",   region: "LEC",   seed: 1, logoColor: "#00C050" },
+  { id: "tsw",  name: "Team Secret Whales", shortName: "TSW",  region: "LCP",   seed: 1, logoColor: "#A855F7" },
+  { id: "lyon", name: "LYON",               shortName: "LYON", region: "LCS",   seed: 1, logoColor: "#0080FF" },
+  { id: "loud", name: "LOUD",               shortName: "LOUD", region: "CBLOL", seed: 1, logoColor: "#00FF7F" },
 ];
 
-// Group Stage — 2 groups of 4, double-elimination format
 export const GROUPS: Group[] = [
   {
     id: "groupA",
     name: "Group A",
-    teams: [
-      TEAMS.find(t => t.id === "blg")!,
-      TEAMS.find(t => t.id === "bfx")!,
-      TEAMS.find(t => t.id === "g2")!,
-      TEAMS.find(t => t.id === "tsw")!,
-    ],
+    ubm1: ["blg", "bfx"],  // UB Match 1
+    ubm2: ["g2",  "tsw"],  // UB Match 2
   },
   {
     id: "groupB",
     name: "Group B",
-    teams: [
-      TEAMS.find(t => t.id === "geng")!,
-      TEAMS.find(t => t.id === "jdg")!,
-      TEAMS.find(t => t.id === "lyon")!,
-      TEAMS.find(t => t.id === "loud")!,
-    ],
+    ubm1: ["geng", "jdg"], // UB Match 1
+    ubm2: ["lyon", "loud"],// UB Match 2
   },
 ];
-
-// Playoffs: top 2 from each group → Semifinals → Final
-// A1 vs B2, B1 vs A2
-export const SEMIFINAL_MATCHES: Match[] = [
-  { id: "sf1", round: 1, position: 1 }, // A1 vs B2
-  { id: "sf2", round: 1, position: 2 }, // B1 vs A2
-];
-
-export const FINAL_MATCH: Match = { id: "final", round: 2, position: 1 };
 
 export const REGION_COLORS: Record<Region, string> = {
   LCK:   "#C8AA6E",
@@ -99,4 +108,5 @@ export const REGION_COLORS: Record<Region, string> = {
   CBLOL: "#00FF7F",
 };
 
-export const getTeamById = (id: string): Team | undefined => TEAMS.find(t => t.id === id);
+export const getTeamById = (id: string): Team | undefined =>
+  TEAMS.find((t) => t.id === id);
