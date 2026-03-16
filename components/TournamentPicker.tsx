@@ -47,7 +47,7 @@ export default function TournamentPicker({ liveResults = {} }: TournamentPickerP
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const [syncing, setSyncing] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -62,7 +62,7 @@ export default function TournamentPicker({ liveResults = {} }: TournamentPickerP
       } catch {
         // ignore load errors silently
       } finally {
-        setLoaded(true);
+        setSyncing(false);
       }
     };
     load();
@@ -157,14 +157,6 @@ export default function TournamentPicker({ liveResults = {} }: TournamentPickerP
     winner: bracketWinners["final"],
   };
 
-  if (!loaded) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-[#3D5A6F] text-sm tracking-widest animate-pulse">LOADING PICKS...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
@@ -173,7 +165,9 @@ export default function TournamentPicker({ liveResults = {} }: TournamentPickerP
           <h2 className="text-2xl font-black text-[#F0E6D3] tracking-wider">
             Your <span className="shimmer-text">Prognosis</span>
           </h2>
-          <p className="text-[#3D5A6F] text-sm mt-0.5">Predict how First Stand 2026 will unfold</p>
+          <p className="text-[#3D5A6F] text-sm mt-0.5">
+            {syncing ? "Syncing your picks..." : "Predict how First Stand 2026 will unfold"}
+          </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <button
