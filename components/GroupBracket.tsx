@@ -83,9 +83,10 @@ interface MatchCardProps {
 
 function MatchCard({ matchId, groupId, title, team1Id, team2Id, winnerId, onPick, disabled, highlight, liveResult }: MatchCardProps) {
   const sched = getSchedule(groupId, matchId);
-  const status = liveResult?.status ?? (sched ? matchStatus(sched.startTime) : "upcoming");
-  const isLive = status === "inProgress" || status === "live";
-  const isCompleted = status === "completed";
+  const timeStatus = sched ? matchStatus(sched.startTime) : "upcoming";
+  const isLive = liveResult?.status === "inProgress" || timeStatus === "live";
+  // Only lock when API confirms a winner — never lock based on time alone
+  const isCompleted = liveResult?.status === "completed" && !!liveResult?.winnerId;
   const isLocked = isCompleted;
 
   // Use live result winner to auto-set, override user pick visually
@@ -375,11 +376,10 @@ export default function GroupBracket({ group, picks, onChange, liveResults = {} 
         </div>
       </div>
 
-      {/* Winner earns MSI bye note */}
       <div className="mt-4 flex items-center gap-2">
         <Trophy className="w-3 h-3 text-[#C8AA6E]" />
         <p className="text-[#3D5A6F] text-[10px]">
-          Top 2 advance to Playoffs • Winner earns bye into MSI bracket stage
+          Top 2 advance to Playoffs
         </p>
       </div>
     </div>
