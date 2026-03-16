@@ -86,7 +86,7 @@ function MatchCard({ matchId, groupId, title, team1Id, team2Id, winnerId, onPick
   const status = liveResult?.status ?? (sched ? matchStatus(sched.startTime) : "upcoming");
   const isLive = status === "inProgress" || status === "live";
   const isCompleted = status === "completed";
-  const isLocked = isLive || isCompleted;
+  const isLocked = isCompleted;
 
   // Use live result winner to auto-set, override user pick visually
   const effectiveWinner = liveResult?.winnerId ?? winnerId;
