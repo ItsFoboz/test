@@ -21,9 +21,6 @@ function PickDetail({ pick }: { pick: Pick }) {
   const [open, setOpen] = useState(false);
   const champion = pick.champion ? getTeamById(pick.champion) : undefined;
 
-  const qfLabels: Record<string, string> = {
-    qf1: "QF1", qf2: "QF2", qf3: "QF3", qf4: "QF4",
-  };
   const sfLabels: Record<string, string> = { sf1: "SF1", sf2: "SF2" };
 
   return (
@@ -72,24 +69,7 @@ function PickDetail({ pick }: { pick: Pick }) {
           {/* Bracket picks */}
           <div>
             <div className="text-[#3D5A6F] text-xs tracking-widest mb-2 font-semibold">BRACKET PICKS</div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <div className="text-[#0BC4E3] text-xs mb-1">Quarterfinals</div>
-                {Object.entries(qfLabels).map(([id, label]) => {
-                  const winner = pick.bracketWinners?.[id];
-                  const team = winner ? getTeamById(winner) : undefined;
-                  return (
-                    <div key={id} className="flex items-center gap-1 text-xs py-0.5">
-                      <span className="text-[#3D5A6F] w-6">{label}</span>
-                      {team ? (
-                        <span className="text-[#F0E6D3] font-semibold">{team.shortName}</span>
-                      ) : (
-                        <span className="text-[#1E2D3D] italic">TBD</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <div className="text-[#A855F7] text-xs mb-1">Semifinals</div>
                 {Object.entries(sfLabels).map(([id, label]) => {

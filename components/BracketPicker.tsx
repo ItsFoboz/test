@@ -99,29 +99,6 @@ export default function BracketPicker({
 
   return (
     <div className="space-y-6">
-      {/* Quarterfinals */}
-      <div>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-1 h-6 bg-[#0BC4E3] rounded-full" />
-          <h3 className="text-[#0BC4E3] font-black tracking-widest text-sm uppercase">Quarterfinals</h3>
-          <div className="flex-1 h-px bg-[#1E2D3D]" />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {quarterfinals.map((match) => (
-            <MatchCard key={match.id} match={match} onPick={(teamId) => onPickWinner(match.id, teamId)} />
-          ))}
-        </div>
-      </div>
-
-      {/* Bracket visual connector */}
-      <div className="flex justify-center">
-        <div className="flex items-center gap-2 text-[#1E2D3D]">
-          <div className="w-16 h-px bg-[#1E2D3D]" />
-          <div className="text-xs tracking-widest text-[#3D5A6F]">ADVANCING</div>
-          <div className="w-16 h-px bg-[#1E2D3D]" />
-        </div>
-      </div>
-
       {/* Semifinals */}
       <div>
         <div className="flex items-center gap-3 mb-3">

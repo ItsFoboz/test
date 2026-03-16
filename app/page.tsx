@@ -52,17 +52,17 @@ export default function Home() {
             </div>
             <div className="hidden sm:flex items-center gap-6 text-xs text-[#3D5A6F]">
               <div className="text-center">
-                <div className="text-[#C8AA6E] font-black text-lg">16</div>
+                <div className="text-[#C8AA6E] font-black text-lg">8</div>
                 <div className="tracking-wider">TEAMS</div>
               </div>
               <div className="w-px h-8 bg-[#1E2D3D]" />
               <div className="text-center">
-                <div className="text-[#C8AA6E] font-black text-lg">4</div>
+                <div className="text-[#C8AA6E] font-black text-lg">2</div>
                 <div className="tracking-wider">GROUPS</div>
               </div>
               <div className="w-px h-8 bg-[#1E2D3D]" />
               <div className="text-center">
-                <div className="text-[#C8AA6E] font-black text-lg">7</div>
+                <div className="text-[#C8AA6E] font-black text-lg">6</div>
                 <div className="tracking-wider">REGIONS</div>
               </div>
             </div>
