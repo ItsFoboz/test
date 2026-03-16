@@ -85,10 +85,9 @@ function MatchCard({ matchId, groupId, title, team1Id, team2Id, winnerId, onPick
   const sched = getSchedule(groupId, matchId);
   const timeStatus = sched ? matchStatus(sched.startTime) : "upcoming";
   const isLive = liveResult?.status === "inProgress" || timeStatus === "live";
-  // Lock when match is complete OR after game 2 has been played
+  // Only lock when API confirms a winner — never lock based on time alone
   const isCompleted = liveResult?.status === "completed" && !!liveResult?.winnerId;
-  const gamesPlayed = (liveResult?.score1 ?? 0) + (liveResult?.score2 ?? 0);
-  const isLocked = isCompleted || gamesPlayed >= 2;
+  const isLocked = isCompleted;
 
   // Use live result winner to auto-set, override user pick visually
   const effectiveWinner = liveResult?.winnerId ?? winnerId;
