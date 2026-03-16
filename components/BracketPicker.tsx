@@ -1,0 +1,186 @@
+"use client";
+
+import { Team, getTeamById, REGION_COLORS } from "@/lib/tournament";
+import { Trophy, Swords } from "lucide-react";
+
+interface BracketMatch {
+  id: string;
+  label: string;
+  team1?: Team;
+  team2?: Team;
+  winner?: string;
+}
+
+interface BracketPickerProps {
+  quarterfinals: BracketMatch[];
+  semifinals: BracketMatch[];
+  final: BracketMatch;
+  onPickWinner: (matchId: string, teamId: string) => void;
+  champion?: string;
+}
+
+function MatchCard({
+  match,
+  onPick,
+  size = "md",
+}: {
+  match: BracketMatch;
+  onPick: (teamId: string) => void;
+  size?: "sm" | "md" | "lg";
+}) {
+  const team1 = match.team1;
+  const team2 = match.team2;
+
+  const TeamSlot = ({ team, isWinner }: { team?: Team; isWinner: boolean }) => {
+    const regionColor = team ? REGION_COLORS[team.region] : undefined;
+    const isLoser = match.winner && team && match.winner !== team.id;
+
+    return (
+      <button
+        onClick={() => team && onPick(team.id)}
+        disabled={!team || !match.team1 || !match.team2}
+        className={`
+          flex items-center gap-2 w-full p-2 rounded-sm border transition-all text-left
+          ${!team ? "border-[#1E2D3D]/30 bg-[#010A13]/50 cursor-default" : ""}
+          ${team && !match.winner ? "border-[#1E2D3D] bg-[#0A1428] hover:border-[#C8AA6E]/50 hover:bg-[#C8AA6E]/5 cursor-pointer" : ""}
+          ${isWinner ? "border-[#C8AA6E] bg-[#C8AA6E]/10 shadow-[0_0_10px_rgba(200,170,110,0.2)]" : ""}
+          ${isLoser ? "border-[#1E2D3D]/20 bg-transparent opacity-30" : ""}
+        `}
+      >
+        {team ? (
+          <>
+            <div
+              className={`${size === "lg" ? "w-8 h-8" : "w-6 h-6"} hex-clip flex items-center justify-center flex-shrink-0`}
+              style={{ backgroundColor: `${team.logoColor}22` }}
+            >
+              <span className="text-[10px] font-black leading-none" style={{ color: team.logoColor }}>
+                {team.shortName.slice(0, 3)}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className={`font-bold truncate ${size === "lg" ? "text-sm" : "text-xs"} ${isWinner ? "text-[#C8AA6E]" : "text-[#F0E6D3]"}`}>
+                {size === "lg" ? team.name : team.shortName}
+              </div>
+              <div className="text-[10px] font-semibold" style={{ color: regionColor }}>{team.region}</div>
+            </div>
+            {isWinner && <div className="w-2 h-2 rounded-full bg-[#C8AA6E] flex-shrink-0" />}
+          </>
+        ) : (
+          <div className={`${size === "lg" ? "text-sm" : "text-xs"} text-[#1E2D3D] italic`}>TBD</div>
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="lol-panel rounded-sm p-2 w-full">
+      <div className="text-[10px] text-[#3D5A6F] tracking-widest mb-1.5 font-semibold px-1">{match.label}</div>
+      <div className="space-y-1">
+        <TeamSlot team={team1} isWinner={match.winner === team1?.id} />
+        <div className="flex items-center gap-1 px-1">
+          <div className="flex-1 h-px bg-[#1E2D3D]" />
+          <Swords className="w-3 h-3 text-[#1E2D3D]" />
+          <div className="flex-1 h-px bg-[#1E2D3D]" />
+        </div>
+        <TeamSlot team={team2} isWinner={match.winner === team2?.id} />
+      </div>
+    </div>
+  );
+}
+
+export default function BracketPicker({
+  quarterfinals,
+  semifinals,
+  final,
+  onPickWinner,
+  champion,
+}: BracketPickerProps) {
+  const championTeam = champion ? getTeamById(champion) : undefined;
+
+  return (
+    <div className="space-y-6">
+      {/* Quarterfinals */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-1 h-6 bg-[#0BC4E3] rounded-full" />
+          <h3 className="text-[#0BC4E3] font-black tracking-widest text-sm uppercase">Quarterfinals</h3>
+          <div className="flex-1 h-px bg-[#1E2D3D]" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {quarterfinals.map((match) => (
+            <MatchCard key={match.id} match={match} onPick={(teamId) => onPickWinner(match.id, teamId)} />
+          ))}
+        </div>
+      </div>
+
+      {/* Bracket visual connector */}
+      <div className="flex justify-center">
+        <div className="flex items-center gap-2 text-[#1E2D3D]">
+          <div className="w-16 h-px bg-[#1E2D3D]" />
+          <div className="text-xs tracking-widest text-[#3D5A6F]">ADVANCING</div>
+          <div className="w-16 h-px bg-[#1E2D3D]" />
+        </div>
+      </div>
+
+      {/* Semifinals */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-1 h-6 bg-[#A855F7] rounded-full" />
+          <h3 className="text-[#A855F7] font-black tracking-widest text-sm uppercase">Semifinals</h3>
+          <div className="flex-1 h-px bg-[#1E2D3D]" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
+          {semifinals.map((match) => (
+            <MatchCard key={match.id} match={match} onPick={(teamId) => onPickWinner(match.id, teamId)} size="md" />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-center">
+        <div className="flex items-center gap-2">
+          <div className="w-16 h-px bg-[#1E2D3D]" />
+          <div className="text-xs tracking-widest text-[#3D5A6F]">GRAND FINAL</div>
+          <div className="w-16 h-px bg-[#1E2D3D]" />
+        </div>
+      </div>
+
+      {/* Final */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-1 h-6 bg-[#C8AA6E] rounded-full" />
+          <h3 className="text-[#C8AA6E] font-black tracking-widest text-sm uppercase">Grand Final</h3>
+          <div className="flex-1 h-px bg-[#1E2D3D]" />
+        </div>
+        <div className="max-w-xs mx-auto">
+          <MatchCard match={final} onPick={(teamId) => onPickWinner(final.id, teamId)} size="lg" />
+        </div>
+      </div>
+
+      {/* Champion */}
+      {champion && (
+        <div className="text-center pt-4">
+          <div className="inline-block lol-panel rounded-sm px-8 py-5 relative">
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#C8AA6E]" />
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#C8AA6E]" />
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#C8AA6E]" />
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#C8AA6E]" />
+
+            <Trophy className="w-8 h-8 text-[#C8AA6E] mx-auto mb-2 float-anim" />
+            <div className="text-[#3D5A6F] text-xs tracking-widest mb-1">YOUR CHAMPION</div>
+            <div className="text-[#C8AA6E] font-black text-xl tracking-wider">
+              {championTeam?.name || champion}
+            </div>
+            {championTeam && (
+              <div
+                className="text-xs font-semibold tracking-widest mt-1"
+                style={{ color: REGION_COLORS[championTeam.region] }}
+              >
+                {championTeam.region}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

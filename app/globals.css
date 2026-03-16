@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+:root {
+  --gold: #C8AA6E;
+  --gold-light: #F0E6D3;
+  --gold-dark: #785A28;
+  --blue-lol: #0BC4E3;
+  --blue-dark: #0A1428;
+  --blue-mid: #091428;
+  --teal: #0BC4E3;
+  --red-lol: #C8372D;
+  --green-lol: #00C050;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #010A13;
+  color: #A0B4C5;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #010A13;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2D3D;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C8AA6E;
+}
+
+/* Hex clip path for team icons */
+.hex-clip {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* Panel style */
+.lol-panel {
+  background: linear-gradient(135deg, #0A1428 0%, #091428 100%);
+  border: 1px solid #1E2D3D;
+  position: relative;
+}
+
+.lol-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C8AA6E, transparent);
+}
+
+/* Button styles */
+.btn-gold {
+  background: linear-gradient(135deg, #785A28, #C8AA6E);
+  border: 1px solid #C8AA6E;
+  color: #010A13;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(135deg, #C8AA6E, #F0E6D3);
+  box-shadow: 0 0 20px rgba(200, 170, 110, 0.5);
+}
+
+.btn-outline-gold {
+  background: transparent;
+  border: 1px solid #C8AA6E;
+  color: #C8AA6E;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.btn-outline-gold:hover {
+  background: rgba(200, 170, 110, 0.1);
+  box-shadow: 0 0 15px rgba(200, 170, 110, 0.3);
+}
+
+/* Input styles */
+.lol-input {
+  background: #020E1A;
+  border: 1px solid #1E2D3D;
+  color: #C8AA6E;
+  transition: all 0.2s;
+}
+
+.lol-input:focus {
+  outline: none;
+  border-color: #C8AA6E;
+  box-shadow: 0 0 10px rgba(200, 170, 110, 0.2);
+}
+
+.lol-input::placeholder {
+  color: #3D5A6F;
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #C8AA6E 0%, #F0E6D3 50%, #C8AA6E 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Team card selected state */
+.team-card-selected {
+  border-color: #C8AA6E !important;
+  background: linear-gradient(135deg, rgba(200, 170, 110, 0.15), rgba(200, 170, 110, 0.05)) !important;
+  box-shadow: 0 0 15px rgba(200, 170, 110, 0.3);
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.float-anim {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Particle background */
+.bg-particles {
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(200, 170, 110, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(11, 196, 227, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(200, 56, 44, 0.03) 0%, transparent 50%);
+}
+
+/* Pulse glow */
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 5px rgba(200, 170, 110, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(200, 170, 110, 0.7); }
+}
+
+.pulse-gold {
+  animation: pulse-gold 2s ease-in-out infinite;
+}
