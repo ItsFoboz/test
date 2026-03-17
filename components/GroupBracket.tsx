@@ -92,8 +92,10 @@ function MatchCard({ matchId, groupId, title, team1Id, team2Id, winnerId, onPick
 
   // Use live result winner to auto-set, override user pick visually
   const effectiveWinner = liveResult?.winnerId ?? winnerId;
-  const score1 = liveResult?.score1;
-  const score2 = liveResult?.score2;
+  // API's team order may differ from bracket order — match by teamId
+  const apiTeam1MatchesBracket = liveResult?.team1Id === team1Id;
+  const score1 = liveResult ? (apiTeam1MatchesBracket ? liveResult.score1 : liveResult.score2) : undefined;
+  const score2 = liveResult ? (apiTeam1MatchesBracket ? liveResult.score2 : liveResult.score1) : undefined;
 
   const canPick = !disabled && !isLocked && !!team1Id && !!team2Id;
   const borderColor = isLive ? "#E84057"

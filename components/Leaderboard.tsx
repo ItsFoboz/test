@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
+import { useResults } from "@/hooks/useResults";
+import { MatchResult } from "@/hooks/useResults";
 import { getTeamById, REGION_COLORS, GROUPS, GroupBracketPicks, getGroupStandings } from "@/lib/tournament";
-import { Trophy, User, Clock, ChevronDown, ChevronUp, Medal } from "lucide-react";
+import { Trophy, User, Clock, ChevronDown, ChevronUp, Medal, Star } from "lucide-react";
 
 interface Pick {
   userId: string;
@@ -15,6 +17,59 @@ interface Pick {
   bracketWinners: Record<string, string>;
   champion?: string;
   submittedAt: number;
+}
+
+interface Score {
+  total: number;
+  group: number;
+  playoff: number;
+  champion: number;
+  hasAnyResults: boolean;
+}
+
+const GROUP_MATCH_IDS: (keyof GroupBracketPicks)[] = ["ubm1", "ubm2", "ubf", "lbr1", "lbf"];
+const GROUP_IDS = ["groupA", "groupB"];
+const PLAYOFF_MATCH_IDS = ["sf1", "sf2"];
+
+function computeScore(
+  pick: Pick,
+  results: Record<string, Record<string, MatchResult>>
+): Score {
+  let group = 0;
+  let playoff = 0;
+  let champion = 0;
+  let hasAnyResults = false;
+
+  for (const groupId of GROUP_IDS) {
+    const groupResults = results[groupId] || {};
+    const groupPicks = pick.groupBrackets?.[groupId] || {};
+    for (const matchId of GROUP_MATCH_IDS) {
+      const result = groupResults[matchId];
+      if (result?.winnerId) {
+        hasAnyResults = true;
+        const predicted = groupPicks[matchId];
+        if (predicted && result.winnerId === predicted) group++;
+      }
+    }
+  }
+
+  const playoffResults = results["playoffs"] || {};
+  for (const matchId of PLAYOFF_MATCH_IDS) {
+    const result = playoffResults[matchId];
+    if (result?.winnerId) {
+      hasAnyResults = true;
+      const predicted = pick.bracketWinners?.[matchId];
+      if (predicted && result.winnerId === predicted) playoff += 2;
+    }
+  }
+
+  const finalResult = playoffResults["final"];
+  if (finalResult?.winnerId) {
+    hasAnyResults = true;
+    if (pick.champion && finalResult.winnerId === pick.champion) champion = 3;
+  }
+
+  return { total: group + playoff + champion, group, playoff, champion, hasAnyResults };
 }
 
 function PickDetail({ pick }: { pick: Pick }) {
@@ -101,10 +156,16 @@ function PickDetail({ pick }: { pick: Pick }) {
   );
 }
 
+interface ScoredPick {
+  pick: Pick;
+  score: Score;
+}
+
 export default function Leaderboard() {
   const { user } = useAuth();
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
+  const { results } = useResults();
 
   useEffect(() => {
     const load = async () => {
@@ -120,6 +181,19 @@ export default function Leaderboard() {
     };
     load();
   }, []);
+
+  const scored: ScoredPick[] = picks.map((pick) => ({
+    pick,
+    score: computeScore(pick, results),
+  }));
+
+  const hasAnyResults = scored.some((s) => s.score.hasAnyResults);
+
+  // Sort by score desc, then by submission time asc (earlier = tiebreaker)
+  const sorted = [...scored].sort((a, b) => {
+    if (b.score.total !== a.score.total) return b.score.total - a.score.total;
+    return a.pick.submittedAt - b.pick.submittedAt;
+  });
 
   const medalColors = ["#C8AA6E", "#A0B4C5", "#785A28"];
 
@@ -142,13 +216,27 @@ export default function Leaderboard() {
         </p>
       </div>
 
+      {/* Scoring legend */}
+      <div className="lol-panel rounded-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Star className="w-4 h-4 text-[#C8AA6E]" />
+          <h3 className="text-[#C8AA6E] font-black tracking-widest text-sm uppercase">Point System</h3>
+        </div>
+        <div className="flex flex-wrap gap-4 text-xs text-[#A0B4C5]">
+          <div><span className="text-[#C8AA6E] font-bold">+1pt</span> per correct group match pick</div>
+          <div><span className="text-[#C8AA6E] font-bold">+2pts</span> per correct semifinal pick</div>
+          <div><span className="text-[#C8AA6E] font-bold">+3pts</span> correct champion pick</div>
+          <div className="text-[#3D5A6F]">Max: 17 pts · No penalty for wrong picks</div>
+        </div>
+      </div>
+
       {/* Champion popularity */}
       {picks.length > 0 && (() => {
         const counts: Record<string, number> = {};
         picks.forEach((p) => { if (p.champion) counts[p.champion] = (counts[p.champion] || 0) + 1; });
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        const sortedChamps = Object.entries(counts).sort((a, b) => b[1] - a[1]);
         const total = picks.filter((p) => p.champion).length;
-        if (sorted.length === 0) return null;
+        if (sortedChamps.length === 0) return null;
         return (
           <div className="lol-panel rounded-sm p-5">
             <div className="flex items-center gap-2 mb-4">
@@ -156,7 +244,7 @@ export default function Leaderboard() {
               <h3 className="text-[#C8AA6E] font-black tracking-widest text-sm uppercase">Champion Predictions</h3>
             </div>
             <div className="space-y-2">
-              {sorted.map(([teamId, count], i) => {
+              {sortedChamps.map(([teamId, count], i) => {
                 const team = getTeamById(teamId);
                 if (!team) return null;
                 const pct = total > 0 ? (count / total) * 100 : 0;
@@ -194,13 +282,13 @@ export default function Leaderboard() {
 
       {/* All picks */}
       <div className="space-y-3">
-        {picks.length === 0 ? (
+        {sorted.length === 0 ? (
           <div className="text-center py-16">
             <Trophy className="w-12 h-12 text-[#1E2D3D] mx-auto mb-4" />
             <p className="text-[#3D5A6F] text-sm tracking-wider">No picks submitted yet.</p>
             <p className="text-[#1E2D3D] text-xs mt-1">Be the first to submit your prognosis!</p>
           </div>
-        ) : picks.map((pick, idx) => {
+        ) : sorted.map(({ pick, score }, idx) => {
           const champion = pick.champion ? getTeamById(pick.champion) : undefined;
           const isMe = pick.userId === user?.uid;
           const date = new Date(pick.submittedAt);
@@ -226,7 +314,22 @@ export default function Leaderboard() {
                     {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
-                {champion && (
+
+                {/* Score badge */}
+                {hasAnyResults ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-1.5 lol-panel px-3 py-1.5 rounded-sm">
+                      <Star className="w-3 h-3 text-[#C8AA6E]" />
+                      <span className="text-[#C8AA6E] font-black text-lg leading-none">{score.total}</span>
+                      <span className="text-[#3D5A6F] text-xs">pts</span>
+                    </div>
+                    <div className="flex gap-2 text-[10px] text-[#3D5A6F]">
+                      {score.group > 0 && <span className="text-[#A0B4C5]">{score.group}g</span>}
+                      {score.playoff > 0 && <span className="text-[#A855F7]">{score.playoff}sf</span>}
+                      {score.champion > 0 && <span className="text-[#C8AA6E]">{score.champion}ch</span>}
+                    </div>
+                  </div>
+                ) : champion && (
                   <div className="flex items-center gap-2 lol-panel px-3 py-1.5 rounded-sm">
                     <Trophy className="w-3 h-3 text-[#C8AA6E]" />
                     <div>
