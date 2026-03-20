@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SCHEDULE } from "@/lib/schedule";
 
 const LOL_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z";
 const TOURNAMENT_ID = "115570858980956868";
@@ -38,9 +39,9 @@ export interface ResultsPayload {
   fetchedAt: string;
 }
 
-// In-memory cache: 90 second TTL
+// In-memory cache: 60 second TTL
 let cache: { data: ResultsPayload; ts: number } | null = null;
-const CACHE_TTL = 90_000;
+const CACHE_TTL = 60_000;
 
 async function fetchStandings(): Promise<ResultsPayload> {
   const url = `https://esports-api.lolesports.com/persisted/gw/getStandings?hl=en-GB&tournamentId=${TOURNAMENT_ID}`;
@@ -70,10 +71,14 @@ async function fetchStandings(): Promise<ResultsPayload> {
           const w = m.teams?.find((t: { result?: { outcome?: string } }) => t.result?.outcome === "win");
           const winnerId = w ? resolveTeamId(w.code ?? w.slug?.toUpperCase() ?? "") : null;
 
+          const scheduled = findByStartTime(m.startTime ?? "");
+          const groupId = scheduled?.groupId ?? inferGroupId(id1, id2);
+          const bracketMatchId = scheduled?.bracketMatchId ?? inferBracketMatchId(m, section, id1, id2);
+
           matches.push({
             matchId: m.id ?? "",
-            groupId: inferGroupId(id1, id2),
-            bracketMatchId: inferBracketMatchId(m, section, id1, id2),
+            groupId,
+            bracketMatchId,
             team1Code: code1,
             team2Code: code2,
             team1Id: id1,
@@ -92,6 +97,18 @@ async function fetchStandings(): Promise<ResultsPayload> {
   }
 
   return { matches, fetchedAt: new Date().toISOString() };
+}
+
+function findByStartTime(startTime: string): { groupId: string; bracketMatchId: string } | null {
+  if (!startTime) return null;
+  const apiMs = new Date(startTime).getTime();
+  if (isNaN(apiMs)) return null;
+  for (const s of SCHEDULE) {
+    if (Math.abs(apiMs - new Date(s.startTime).getTime()) < 30 * 60 * 1000) {
+      return { groupId: s.groupId, bracketMatchId: s.bracketMatchId };
+    }
+  }
+  return null;
 }
 
 function inferGroupId(id1: string | null, id2: string | null): string {
