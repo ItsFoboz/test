@@ -22,16 +22,26 @@ const DEFAULT_BRACKETS: Record<string, GroupBracketPicks> = Object.fromEntries(
   GROUPS.map((g) => [g.id, {}])
 );
 
-function buildSemifinals(groupBrackets: Record<string, GroupBracketPicks>) {
-  const aStandings = getGroupStandings(GROUPS[0], groupBrackets["groupA"] || {});
-  const bStandings = getGroupStandings(GROUPS[1], groupBrackets["groupB"] || {});
-  const a1 = aStandings[0] ? getTeamById(aStandings[0]) : undefined;
-  const a2 = aStandings[1] ? getTeamById(aStandings[1]) : undefined;
-  const b1 = bStandings[0] ? getTeamById(bStandings[0]) : undefined;
-  const b2 = bStandings[1] ? getTeamById(bStandings[1]) : undefined;
+function buildSemifinals(
+  groupBrackets: Record<string, GroupBracketPicks>,
+  liveResults: Record<string, Record<string, MatchResult>>
+) {
+  // Prefer actual group results (ubf winner = 1st, lbf winner = 2nd)
+  // Fall back to user's picks if results aren't available yet
+  const aLive = liveResults["groupA"];
+  const bLive = liveResults["groupB"];
+
+  const aPickStandings = getGroupStandings(GROUPS[0], groupBrackets["groupA"] || {});
+  const bPickStandings = getGroupStandings(GROUPS[1], groupBrackets["groupB"] || {});
+
+  const a1Id = aLive?.["ubf"]?.winnerId ?? aPickStandings[0];
+  const a2Id = aLive?.["lbf"]?.winnerId ?? aPickStandings[1];
+  const b1Id = bLive?.["ubf"]?.winnerId ?? bPickStandings[0];
+  const b2Id = bLive?.["lbf"]?.winnerId ?? bPickStandings[1];
+
   return [
-    { id: "sf1", label: "SF1 — A1 vs B2", team1: a1, team2: b2 },
-    { id: "sf2", label: "SF2 — B1 vs A2", team1: b1, team2: a2 },
+    { id: "sf1", label: "SF1 — A1 vs B2", team1: a1Id ? getTeamById(a1Id) : undefined, team2: b2Id ? getTeamById(b2Id) : undefined },
+    { id: "sf2", label: "SF2 — B1 vs A2", team1: b1Id ? getTeamById(b1Id) : undefined, team2: a2Id ? getTeamById(a2Id) : undefined },
   ];
 }
 
@@ -143,10 +153,19 @@ export default function TournamentPicker({ liveResults = {} }: TournamentPickerP
   const progressPct = (completedSteps / progressSteps.length) * 100;
 
   // Build playoffs
-  const sfMatches = buildSemifinals(groupBrackets);
+  const sfMatches = buildSemifinals(groupBrackets, liveResults);
   const sfWithWinners = sfMatches.map((m) => ({ ...m, winner: bracketWinners[m.id] }));
-  const aStandings = getGroupStandings(GROUPS[0], groupBrackets["groupA"] || {});
-  const bStandings = getGroupStandings(GROUPS[1], groupBrackets["groupB"] || {});
+  // Use actual results for standings when available
+  const aLive = liveResults["groupA"];
+  const bLive = liveResults["groupB"];
+  const aPickStandings = getGroupStandings(GROUPS[0], groupBrackets["groupA"] || {});
+  const bPickStandings = getGroupStandings(GROUPS[1], groupBrackets["groupB"] || {});
+  const aStandings = aLive
+    ? [aLive["ubf"]?.winnerId, aLive["lbf"]?.winnerId, undefined, undefined]
+    : aPickStandings;
+  const bStandings = bLive
+    ? [bLive["ubf"]?.winnerId, bLive["lbf"]?.winnerId, undefined, undefined]
+    : bPickStandings;
   const finalTeam1 = bracketWinners["sf1"] ? getTeamById(bracketWinners["sf1"]) : undefined;
   const finalTeam2 = bracketWinners["sf2"] ? getTeamById(bracketWinners["sf2"]) : undefined;
   const finalMatch = {
