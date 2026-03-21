@@ -48,19 +48,21 @@ function MatchCard({
 
   const TeamSlot = ({ team, isWinner, score }: { team?: Team; isWinner: boolean; score?: number }) => {
     const regionColor = team ? REGION_COLORS[team.region] : undefined;
-    const isLoser = effectiveWinner && team && effectiveWinner !== team.id;
+    // Only dim the loser once the match is fully over
+    const isLoser = isCompleted && effectiveWinner && team && effectiveWinner !== team.id;
+    const canClick = !!team && !!match.team1 && !!match.team2 && !isLocked;
 
     return (
       <button
-        onClick={() => team && !isLocked && onPick(team.id)}
-        disabled={!team || !match.team1 || !match.team2 || isLocked}
+        onClick={() => canClick && onPick(team!.id)}
+        disabled={!canClick}
         className={`
           flex items-center gap-2 w-full p-2 rounded-sm border transition-all text-left
           ${!team ? "border-[#1E2D3D]/30 bg-[#010A13]/50 cursor-default" : ""}
-          ${team && !effectiveWinner && !isLocked ? "border-[#1E2D3D] bg-[#0A1428] hover:border-[#C8AA6E]/50 hover:bg-[#C8AA6E]/5 cursor-pointer" : ""}
+          ${canClick ? "border-[#1E2D3D] bg-[#0A1428] hover:border-[#C8AA6E]/50 hover:bg-[#C8AA6E]/5 cursor-pointer" : ""}
           ${isWinner ? "border-[#C8AA6E] bg-[#C8AA6E]/10 shadow-[0_0_10px_rgba(200,170,110,0.2)]" : ""}
           ${isLoser ? "border-[#1E2D3D]/20 bg-transparent opacity-30" : ""}
-          ${isLive && !isWinner && !isLoser ? "border-[#E84057]/30" : ""}
+          ${isLive && !isWinner ? "border-[#E84057]/30" : ""}
         `}
       >
         {team ? (
