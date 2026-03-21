@@ -37,7 +37,7 @@ function MatchCard({
 
   const isLive = liveResult?.status === "inProgress";
   const isCompleted = liveResult?.status === "completed";
-  const isLocked = isLive || isCompleted;
+  const isLocked = isCompleted;
 
   // Resolve scores respecting API team order vs bracket order
   const apiTeam1MatchesBracket = liveResult?.team1Id === team1?.id;
