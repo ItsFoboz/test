@@ -93,10 +93,13 @@ export default function ResultsBanner({ results, fetchedAt, loading, onRefresh }
   const now = new Date();
 
   // Split into ongoing/recent vs upcoming
+  // Always include any match the API reports as live or completed, regardless of scheduled time
   const active = SCHEDULE.filter(s => {
+    const result = results[s.groupId]?.[s.bracketMatchId];
+    if (result?.status === "inProgress" || result?.status === "completed") return true;
     const start = new Date(s.startTime);
     const diff = now.getTime() - start.getTime();
-    return diff > -2 * 60 * 60 * 1000; // started within 2h in future or already started
+    return diff > -2 * 60 * 60 * 1000;
   });
   const upcoming = SCHEDULE.filter(s => {
     const start = new Date(s.startTime);

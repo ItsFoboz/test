@@ -1,7 +1,8 @@
 "use client";
 
 import { Team, getTeamById, REGION_COLORS } from "@/lib/tournament";
-import { Trophy, Swords } from "lucide-react";
+import { MatchResult } from "@/hooks/useResults";
+import { Trophy, Swords, Radio } from "lucide-react";
 
 interface BracketMatch {
   id: string;
@@ -17,34 +18,49 @@ interface BracketPickerProps {
   final: BracketMatch;
   onPickWinner: (matchId: string, teamId: string) => void;
   champion?: string;
+  liveResults?: Record<string, MatchResult>;
 }
 
 function MatchCard({
   match,
   onPick,
   size = "md",
+  liveResult,
 }: {
   match: BracketMatch;
   onPick: (teamId: string) => void;
   size?: "sm" | "md" | "lg";
+  liveResult?: MatchResult;
 }) {
   const team1 = match.team1;
   const team2 = match.team2;
 
-  const TeamSlot = ({ team, isWinner }: { team?: Team; isWinner: boolean }) => {
+  const isLive = liveResult?.status === "inProgress";
+  const isCompleted = liveResult?.status === "completed";
+  const isLocked = isLive || isCompleted;
+
+  // Resolve scores respecting API team order vs bracket order
+  const apiTeam1MatchesBracket = liveResult?.team1Id === team1?.id;
+  const score1 = liveResult ? (apiTeam1MatchesBracket ? liveResult.score1 : liveResult.score2) : undefined;
+  const score2 = liveResult ? (apiTeam1MatchesBracket ? liveResult.score2 : liveResult.score1) : undefined;
+
+  const effectiveWinner = liveResult?.winnerId ?? match.winner;
+
+  const TeamSlot = ({ team, isWinner, score }: { team?: Team; isWinner: boolean; score?: number }) => {
     const regionColor = team ? REGION_COLORS[team.region] : undefined;
-    const isLoser = match.winner && team && match.winner !== team.id;
+    const isLoser = effectiveWinner && team && effectiveWinner !== team.id;
 
     return (
       <button
-        onClick={() => team && onPick(team.id)}
-        disabled={!team || !match.team1 || !match.team2}
+        onClick={() => team && !isLocked && onPick(team.id)}
+        disabled={!team || !match.team1 || !match.team2 || isLocked}
         className={`
           flex items-center gap-2 w-full p-2 rounded-sm border transition-all text-left
           ${!team ? "border-[#1E2D3D]/30 bg-[#010A13]/50 cursor-default" : ""}
-          ${team && !match.winner ? "border-[#1E2D3D] bg-[#0A1428] hover:border-[#C8AA6E]/50 hover:bg-[#C8AA6E]/5 cursor-pointer" : ""}
+          ${team && !effectiveWinner && !isLocked ? "border-[#1E2D3D] bg-[#0A1428] hover:border-[#C8AA6E]/50 hover:bg-[#C8AA6E]/5 cursor-pointer" : ""}
           ${isWinner ? "border-[#C8AA6E] bg-[#C8AA6E]/10 shadow-[0_0_10px_rgba(200,170,110,0.2)]" : ""}
           ${isLoser ? "border-[#1E2D3D]/20 bg-transparent opacity-30" : ""}
+          ${isLive && !isWinner && !isLoser ? "border-[#E84057]/30" : ""}
         `}
       >
         {team ? (
@@ -63,7 +79,12 @@ function MatchCard({
               </div>
               <div className="text-[10px] font-semibold" style={{ color: regionColor }}>{team.region}</div>
             </div>
-            {isWinner && <div className="w-2 h-2 rounded-full bg-[#C8AA6E] flex-shrink-0" />}
+            {score !== undefined && (
+              <span className={`text-sm font-black tabular-nums w-5 text-center flex-shrink-0 ${isWinner ? "text-[#C8AA6E]" : isLive ? "text-[#E84057]" : "text-[#3D5A6F]"}`}>
+                {score}
+              </span>
+            )}
+            {isWinner && score === undefined && <div className="w-2 h-2 rounded-full bg-[#C8AA6E] flex-shrink-0" />}
           </>
         ) : (
           <div className={`${size === "lg" ? "text-sm" : "text-xs"} text-[#1E2D3D] italic`}>TBD</div>
@@ -73,16 +94,20 @@ function MatchCard({
   };
 
   return (
-    <div className="lol-panel rounded-sm p-2 w-full">
-      <div className="text-[10px] text-[#3D5A6F] tracking-widest mb-1.5 font-semibold px-1">{match.label}</div>
+    <div className={`lol-panel rounded-sm p-2 w-full ${isLive ? "border-[#E84057]/40 shadow-[0_0_12px_rgba(232,64,87,0.15)]" : ""}`}>
+      <div className="flex items-center gap-1.5 mb-1.5 px-1">
+        {isLive && <Radio className="w-3 h-3 text-[#E84057] animate-pulse flex-shrink-0" />}
+        <div className="text-[10px] text-[#3D5A6F] tracking-widest font-semibold truncate">{match.label}</div>
+        {isLive && <span className="text-[9px] text-[#E84057] font-black tracking-widest ml-auto flex-shrink-0">LIVE</span>}
+      </div>
       <div className="space-y-1">
-        <TeamSlot team={team1} isWinner={match.winner === team1?.id} />
+        <TeamSlot team={team1} isWinner={effectiveWinner === team1?.id} score={score1} />
         <div className="flex items-center gap-1 px-1">
           <div className="flex-1 h-px bg-[#1E2D3D]" />
           <Swords className="w-3 h-3 text-[#1E2D3D]" />
           <div className="flex-1 h-px bg-[#1E2D3D]" />
         </div>
-        <TeamSlot team={team2} isWinner={match.winner === team2?.id} />
+        <TeamSlot team={team2} isWinner={effectiveWinner === team2?.id} score={score2} />
       </div>
     </div>
   );
@@ -94,6 +119,7 @@ export default function BracketPicker({
   final,
   onPickWinner,
   champion,
+  liveResults = {},
 }: BracketPickerProps) {
   const championTeam = champion ? getTeamById(champion) : undefined;
 
@@ -108,7 +134,13 @@ export default function BracketPicker({
         </div>
         <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
           {semifinals.map((match) => (
-            <MatchCard key={match.id} match={match} onPick={(teamId) => onPickWinner(match.id, teamId)} size="md" />
+            <MatchCard
+              key={match.id}
+              match={match}
+              onPick={(teamId) => onPickWinner(match.id, teamId)}
+              size="md"
+              liveResult={liveResults[match.id]}
+            />
           ))}
         </div>
       </div>
@@ -129,7 +161,12 @@ export default function BracketPicker({
           <div className="flex-1 h-px bg-[#1E2D3D]" />
         </div>
         <div className="max-w-xs mx-auto">
-          <MatchCard match={final} onPick={(teamId) => onPickWinner(final.id, teamId)} size="lg" />
+          <MatchCard
+            match={final}
+            onPick={(teamId) => onPickWinner(final.id, teamId)}
+            size="lg"
+            liveResult={liveResults[final.id]}
+          />
         </div>
       </div>
 

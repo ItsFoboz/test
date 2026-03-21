@@ -297,6 +297,7 @@ export default function TournamentPicker({ liveResults = {} }: TournamentPickerP
             final={finalMatch}
             onPickWinner={handlePickWinner}
             champion={bracketWinners["final"]}
+            liveResults={liveResults["playoffs"] || {}}
           />
         </div>
       )}
