@@ -37,7 +37,7 @@ function MatchCard({
 
   const isLive = liveResult?.status === "inProgress";
   const isCompleted = liveResult?.status === "completed";
-  const isLocked = isCompleted;
+  const isLocked = isLive || isCompleted;
 
   // Resolve scores respecting API team order vs bracket order
   const apiTeam1MatchesBracket = liveResult?.team1Id === team1?.id;
@@ -48,8 +48,7 @@ function MatchCard({
 
   const TeamSlot = ({ team, isWinner, score }: { team?: Team; isWinner: boolean; score?: number }) => {
     const regionColor = team ? REGION_COLORS[team.region] : undefined;
-    // Only dim the loser once the match is fully over
-    const isLoser = isCompleted && effectiveWinner && team && effectiveWinner !== team.id;
+    const isLoser = effectiveWinner && team && effectiveWinner !== team.id;
     const canClick = !!team && !!match.team1 && !!match.team2 && !isLocked;
 
     return (
