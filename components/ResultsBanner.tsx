@@ -92,21 +92,31 @@ function MatchTile({ schedule, result }: {
 export default function ResultsBanner({ results, fetchedAt, loading, onRefresh }: ResultsBannerProps) {
   const now = new Date();
 
-  // Split into ongoing/recent vs upcoming
-  // Always include any match the API reports as live or completed, regardless of scheduled time
-  const active = SCHEDULE.filter(s => {
+  // Priority 1: any match the API reports as live right now
+  const live = SCHEDULE.filter(s => results[s.groupId]?.[s.bracketMatchId]?.status === "inProgress");
+
+  // Priority 2: most recent completed + upcoming (within ±8h of now by schedule)
+  const recent = SCHEDULE.filter(s => {
     const result = results[s.groupId]?.[s.bracketMatchId];
-    if (result?.status === "inProgress" || result?.status === "completed") return true;
+    if (result?.status === "inProgress") return false; // already in live
+    if (result?.status === "completed") {
+      const start = new Date(s.startTime);
+      return now.getTime() - start.getTime() < 8 * 60 * 60 * 1000; // completed within 8h
+    }
     const start = new Date(s.startTime);
     const diff = now.getTime() - start.getTime();
-    return diff > -2 * 60 * 60 * 1000;
+    return diff > -8 * 60 * 60 * 1000 && diff < 0; // upcoming within 8h
   });
+
+  // If nothing recent/live, fall back to next 4 upcoming
   const upcoming = SCHEDULE.filter(s => {
     const start = new Date(s.startTime);
-    return start.getTime() > now.getTime() + 2 * 60 * 60 * 1000;
+    return start.getTime() > now.getTime();
   }).slice(0, 4);
 
-  const displayed = active.length > 0 ? active : upcoming;
+  const displayed = live.length > 0 || recent.length > 0
+    ? [...live, ...recent]
+    : upcoming;
 
   return (
     <div className="border-b border-[#1E2D3D] bg-[#010A13]">
